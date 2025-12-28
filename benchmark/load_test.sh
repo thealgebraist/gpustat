@@ -1,26 +1,34 @@
 #!/bin/bash
 
-# GPUStat Sidecar Monitor & Load Generator
-# Targets 8 specific stats under heavy load
+# GPUStat Sidecar Monitor & GCC Load Generator
+echo "=== Initializing GCC Load Test & Sidecar Monitor ==="
 
-echo "=== Initializing Load Test Sidecar Monitor ==="
+# 1. Prepare GCC Source (Depth 1 for speed)
+echo "Cloning GCC source (depth=1)..."
+git clone --depth=1 https://github.com/gcc-mirror/gcc.git gcc_src > /dev/null 2>&1
 
-# 1. Start Load Generator (Stressing CPU and I/O)
-# We use openssl speed as a portable high-intensity CPU burner
-openssl speed -multi $(nproc) > /dev/null 2>&1 &
+# 2. Start GCC Load Generator
+# We just run the configure and a partial make to maximize process fork and CPU load
+cd gcc_src
+./configure --disable-multilib > /dev/null 2>&1
+make -j$(nproc) > /dev/null 2>&1 &
 LOAD_PID=$!
-echo "Load Generator started (PID: $LOAD_PID) using $(nproc) cores."
+cd ..
 
-# 2. Parallel Monitor Loop
+echo "GCC Compilation started (PID: $LOAD_PID) using $(nproc) cores."
+
+# 3. Parallel Monitor Loop
 LOG="load_test_results.log"
 echo "Timestamp,Steal,IOWait,CtxSwitch,PageFaults,Interrupts,L1_ns,TLB_ns" > $LOG
 
 START_TIME=$(date +%s)
-DURATION=60 # Run for 60 seconds for CI purposes
+# Use DURATION from env or default to 60s
+[ -z "$DURATION" ] && DURATION=60
 
 while [ $(($(date +%s) - START_TIME)) -lt $DURATION ]; do
     # Capture /proc/stat metrics
     STAT_LINE=$(grep "cpu " /proc/stat)
+    # Fields: user nice system idle iowait irq softirq steal
     STEAL=$(echo $STAT_LINE | awk '{print $9}')
     IOWAIT=$(echo $STAT_LINE | awk '{print $6}')
     
@@ -31,12 +39,7 @@ while [ $(($(date +%s) - START_TIME)) -lt $DURATION ]; do
     # Page Faults (Major)
     PF=$(awk '/pgmajfault/ {print $2}' /proc/vmstat)
     
-    # Frequency (Current Avg)
-    FREQ=$(grep "cpu MHz" /proc/cpuinfo | head -n 1 | awk '{print $4}')
-    [ -z "$FREQ" ] && FREQ="N/A"
-
-    # Pulse Test (Run subset of 64-test suite)
-    # Redirecting to temp file to parse mean
+    # Pulse Test
     ./benchmark/bench "L1 Latency" > pulse.tmp
     L1_LAT=$(grep "Avg:" pulse.tmp | awk '{print $2}')
     
@@ -47,14 +50,17 @@ while [ $(($(date +%s) - START_TIME)) -lt $DURATION ]; do
     TS=$(date +%H:%M:%S)
     echo "$TS,$STEAL,$IOWAIT,$CS,$PF,$INTR,$L1_LAT,$TLB_LAT" >> $LOG
     
-    echo "[$TS] Load Active. Steal: $STEAL | IOWait: $IOWAIT | L1: $L1_LAT ns | Freq: $FREQ MHz"
+    echo "[$TS] GCC Compiling... Steal: $STEAL | IOWait: $IOWAIT | L1: $L1_LAT ns"
     sleep 5
 done
 
-# 3. Cleanup
+# 4. Cleanup
+echo "Cleaning up load processes..."
+pkill -P $LOAD_PID
 kill $LOAD_PID
+rm -rf gcc_src pulse.tmp
+
 echo "=== Load Test Complete ==="
 echo ""
-echo "Summary of Infrastructure Degradation:"
+echo "Summary of Infrastructure Degradation during GCC Compile:"
 column -t -s, $LOG
-rm pulse.tmp

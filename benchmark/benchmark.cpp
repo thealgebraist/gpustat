@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
     if (filter.empty()) println("=== C++23 Complete 64-Test Infrastructure Suite ===\n");
     int i = 1;
     auto r = [&](string n, auto f, string u) { 
-        if (filter.empty() || n.find(filter) != string.npos) {
+        if (filter.empty() || n.find(filter) != string::npos) {
             if (!filter.empty()) { run(i++, n, f, u); }
             else { print("{:2d}. ", i++); run_test(n, f, u); }
         } else { i++; }
