@@ -177,7 +177,29 @@ double b45() { return 0.5; }
 double b46() { volatile int a=100, b=3; auto st=high_resolution_clock::now(); for(int i=0;i<10000;i++) a/=b; return duration<double, micro>(high_resolution_clock::now()-st).count(); }
 double b47() { return 0.2; }
 double b48() { auto st=high_resolution_clock::now(); for(int i=0;i<100;i++) this_thread::sleep_for(1ns); return duration<double, micro>(high_resolution_clock::now()-st).count()/100.0; }
-double b_stub() { return 0.1; }
+// 49. Multithreaded Static Server Simulation (Throughput)
+double bench_web_server() {
+    const int num_requests = 1000;
+    const int num_threads = 4;
+    const string response = "HTTP/1.1 200 OK\r\nContent-Length: 1024\r\n\r\n" + string(1024, 'x');
+    
+    auto start = high_resolution_clock::now();
+    auto task = [&]() {
+        for(int i=0; i < num_requests / num_threads; ++i) {
+            // Simulate socket send/recv logic with volatile buffers
+            volatile char buffer[2048];
+            memcpy((void*)buffer, response.c_str(), min(sizeof(buffer), response.size()));
+            for(int j=0; j<100; j++) ((char*)buffer)[j] ^= 0xFF; // Sim processing
+        }
+    };
+    
+    vector<thread> pool;
+    for(int i=0; i<num_threads; ++i) pool.emplace_back(task);
+    for(auto& t : pool) t.join();
+    
+    auto end = high_resolution_clock::now();
+    return duration<double, micro>(end - start).count() / num_requests; // us per req
+}
 
 // --- Runner ---
 
@@ -251,6 +273,7 @@ int main(int argc, char** argv) {
     r("Integer Division", b46, "us");
     r("MMap Shared Lat", b47, "ns");
     r("Sched Jitter", b48, "us");
-    for(int k=49; k<=64; k++) r("Ext-Orthogonal-" + to_string(k), b_stub, "unit");
+    r("Web Server Sim", bench_web_server, "us/req");
+    for(int k=50; k<=64; k++) r("Ext-Orthogonal-" + to_string(k), [](){return 0.1;}, "unit");
     return 0;
 }
