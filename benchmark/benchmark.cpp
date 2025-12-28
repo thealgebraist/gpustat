@@ -241,6 +241,42 @@ double bench_large_files() {
     return duration<double, milli>(high_resolution_clock::now() - start).count();
 }
 
+// Simulated Compression Logic (LZ77-style match finding)
+double run_compression_sim(size_t size) {
+    // 1. Generate Wikipedia-like redundant text
+    static const vector<string> words = {"the", "of", "and", "one", "amazon", "cloud", "server", "data", "infrastructure", "network", "is", "it", "with", "as", "for", "was"};
+    string text;
+    text.reserve(size);
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> d(0, words.size() - 1);
+    while (text.size() < size) {
+        text += words[d(gen)] + " ";
+    }
+    if (text.size() > size) text.resize(size);
+
+    // 2. Perform Sliding Window Match Finding (Simulates Zlib/LZ77 bottleneck)
+    auto start = high_resolution_clock::now();
+    size_t matches = 0;
+    const size_t window = 1024;
+    for (size_t i = window; i < text.size(); i += 16) {
+        // Look for 4-byte matches in the previous 1KB window
+        string_view current(&text[i], min((size_t)4, text.size() - i));
+        string_view prev_window(&text[i - window], window);
+        if (prev_window.find(current) != string_view::npos) {
+            matches++;
+        }
+    }
+    volatile size_t sink = matches; (void)sink;
+    auto end = high_resolution_clock::now();
+    return duration<double, milli>(end - start).count();
+}
+
+double b52() { return run_compression_sim(10 * 1024); }       // Small 10KB
+double b53() { return run_compression_sim(100 * 1024); }      // Medium 100KB
+double b54() { return run_compression_sim(1024 * 1024); }     // Large 1MB
+double b55() { return run_compression_sim(10 * 1024 * 1024); }// V. Large 10MB
+
 // --- Runner ---
 
 void run_internal(int id, string name, double (*f)(), string unit) {
@@ -316,6 +352,10 @@ int main(int argc, char** argv) {
     r("Web Server Sim", bench_web_server, "us/req");
     r("Small Files", bench_small_files, "ms");
     r("Large Files", bench_large_files, "ms");
-    for(int k=52; k<=64; k++) r("Ext-Orthogonal-" + to_string(k), [](){return 0.1;}, "unit");
+    r("Compress-Small", b52, "ms");
+    r("Compress-Med", b53, "ms");
+    r("Compress-Large", b54, "ms");
+    r("Compress-VLarge", b55, "ms");
+    for(int k=56; k<=64; k++) r("Ext-Orthogonal-" + to_string(k), [](){return 0.1;}, "unit");
     return 0;
 }
