@@ -1,0 +1,30 @@
+name: Manual Infrastructure Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duration of load test in seconds'
+        required: true
+        default: '60'
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y g++-14 openssl bsdmainutils
+
+    - name: Compile Benchmark
+      run: |
+        g++-14 -std=c++23 benchmark/benchmark.cpp -o benchmark/bench
+
+    - name: Run Pressure Test & Monitor
+      run: |
+        chmod +x benchmark/load_test.sh
+        DURATION=${{ github.event.inputs.duration }} benchmark/load_test.sh

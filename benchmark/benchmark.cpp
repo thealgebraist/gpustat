@@ -202,8 +202,18 @@ void run(int id, string name, double (*f)(), string unit) {
             r.mean, r.p999, unit, r.samples, r.distribution_guess);
 }
 
-int main() {
-    println("=== C++23 Complete 64-Test Infrastructure Suite ===\n");
+int main(int argc, char** argv) {
+    string filter = "";
+    if (argc > 1) filter = argv[1];
+
+    if (filter.empty()) println("=== C++23 Complete 64-Test Infrastructure Suite ===\n");
+    int i = 1;
+    auto r = [&](string n, auto f, string u) { 
+        if (filter.empty() || n.find(filter) != string.npos) {
+            if (!filter.empty()) { run(i++, n, f, u); }
+            else { print("{:2d}. ", i++); run_test(n, f, u); }
+        } else { i++; }
+    };
     run(1, "Mandelbrot", b1, "ms");
     run(2, "SHA-256 Sim", b2, "us");
     run(3, "Branch Penalty", b3, "us");
