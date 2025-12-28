@@ -5,7 +5,21 @@
 #include <cmath>
 #include <ranges>
 #include <algorithm>
+#if __has_include(<print>)
 #include <print>
+#else
+#include <format>
+namespace std {
+    template<typename... Args>
+    void print(string_view fmt, Args&&... args) {
+        cout << vformat(fmt, make_format_args(args...));
+    }
+    template<typename... Args>
+    void println(string_view fmt, Args&&... args) {
+        cout << vformat(fmt, make_format_args(args...)) << endl;
+    }
+}
+#endif
 #include <random>
 #include <thread>
 #include <atomic>
