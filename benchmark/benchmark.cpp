@@ -277,6 +277,47 @@ double b53() { return run_compression_sim(100 * 1024); }      // Medium 100KB
 double b54() { return run_compression_sim(1024 * 1024); }     // Large 1MB
 double b55() { return run_compression_sim(10 * 1024 * 1024); }// V. Large 10MB
 
+// 56. Prime Sieve (Heavy - 1M)
+double b56() {
+    const int N = 1'000'000;
+    vector<bool> p(N+1, true);
+    auto st = high_resolution_clock::now();
+    for(int i=2; i*i<=N; i++) if(p[i]) for(int j=i*i; j<=N; j+=i) p[j]=false;
+    return duration<double, milli>(high_resolution_clock::now()-st).count();
+}
+
+// 57. Factorial Simulation (Precision/Iterative stress)
+double b57() {
+    auto st = high_resolution_clock::now();
+    for(int j=0; j<1000; j++) {
+        volatile double res = 1.0;
+        for(int i=1; i<=1000; i++) res *= i;
+        (void)res;
+    }
+    return duration<double, micro>(high_resolution_clock::now()-st).count();
+}
+
+// 58. Advanced Bitwise Logic (SHA-256 round simulation)
+double b58() {
+    uint32_t a=0x6a09e667, b=0xbb67ae85, c=0x3c6ef372;
+    auto st = high_resolution_clock::now();
+    for(int i=0; i<500'000; i++) {
+        a = (a ^ b ^ c) + (i % 256);
+        b = std::rotl(b, 7) ^ a;
+        c = (c + a) ^ std::rotr(b, 13);
+    }
+    volatile uint32_t sink = c; (void)sink;
+    return duration<double, micro>(high_resolution_clock::now()-st).count();
+}
+
+// 59. Floating Point Pipeline (FMA Stress)
+double b59() {
+    volatile double a=1.1, b=2.2, c=3.3;
+    auto st = high_resolution_clock::now();
+    for(int i=0; i<1'000'000; i++) a = fma(a, b, c);
+    return duration<double, micro>(high_resolution_clock::now()-st).count();
+}
+
 // --- Runner ---
 
 void run_internal(int id, string name, double (*f)(), string unit) {
@@ -356,6 +397,10 @@ int main(int argc, char** argv) {
     r("Compress-Med", b53, "ms");
     r("Compress-Large", b54, "ms");
     r("Compress-VLarge", b55, "ms");
-    for(int k=56; k<=64; k++) r("Ext-Orthogonal-" + to_string(k), [](){return 0.1;}, "unit");
+    r("Primes (1M)", b56, "ms");
+    r("Factorial-Sim", b57, "us");
+    r("SHA-Round-Sim", b58, "us");
+    r("FMA-Stress", b59, "us");
+    for(int k=60; k<=64; k++) r("Ext-Orthogonal-" + to_string(k), [](){return 0.1;}, "unit");
     return 0;
 }
