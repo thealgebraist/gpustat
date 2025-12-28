@@ -1,0 +1,9 @@
+build/
+bin/
+*.tmp
+bench_tmp/
+benchmark/bench
+prices.db
+prices.csv
+prices.hpp
+.DS_Store
