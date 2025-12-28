@@ -75,7 +75,7 @@ public:
     }
 };
 
-// --- Benchmark Implementations ---
+// --- Benchmarks ---
 
 double b1() {
     auto s = high_resolution_clock::now();
@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
     auto r = [&](string n, auto f, string u) { 
         if (filter.empty() || n.find(filter) != std::string::npos) {
             run_internal(i++, n, f, u);
-        } else { i++; }
+        } else { i++; } 
     };
     r("Mandelbrot", b1, "ms");
     r("SHA-256 Sim", b2, "us");
