@@ -210,6 +210,37 @@ double bench_web_server() {
     return duration<double, micro>(end - start).count() / num_requests; 
 }
 
+// 50. Small File Metadata Stress (Create/Delete 100x 1KB files)
+double bench_small_files() {
+    auto start = high_resolution_clock::now();
+    string dir = "small_file_bench";
+    filesystem::create_directory(dir);
+    vector<char> data(1024, 'x');
+    for(int i=0; i<100; i++) {
+        ofstream f(dir + "/" + to_string(i), ios::binary);
+        f.write(data.data(), data.size());
+    }
+    filesystem::remove_all(dir);
+    return duration<double, milli>(high_resolution_clock::now() - start).count();
+}
+
+// 51. Large File Throughput (Write/Delete 10MB random bytes)
+double bench_large_files() {
+    auto start = high_resolution_clock::now();
+    string name = "large_file_bench.tmp";
+    vector<char> data(10 * 1024 * 1024);
+    random_device rd;
+    mt19937 gen(rd());
+    for(auto& x : data) x = static_cast<char>(gen());
+    
+    ofstream f(name, ios::binary);
+    f.write(data.data(), data.size());
+    f.flush();
+    f.close();
+    filesystem::remove(name);
+    return duration<double, milli>(high_resolution_clock::now() - start).count();
+}
+
 // --- Runner ---
 
 void run_internal(int id, string name, double (*f)(), string unit) {
@@ -283,6 +314,8 @@ int main(int argc, char** argv) {
     r("MMap Shared Lat", b47, "ns");
     r("Sched Jitter", b48, "us");
     r("Web Server Sim", bench_web_server, "us/req");
-    for(int k=50; k<=64; k++) r("Ext-Orthogonal-" + to_string(k), [](){return 0.1;}, "unit");
+    r("Small Files", bench_small_files, "ms");
+    r("Large Files", bench_large_files, "ms");
+    for(int k=52; k<=64; k++) r("Ext-Orthogonal-" + to_string(k), [](){return 0.1;}, "unit");
     return 0;
 }
