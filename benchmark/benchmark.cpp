@@ -179,17 +179,26 @@ double b47() { return 0.2; }
 double b48() { auto st=high_resolution_clock::now(); for(int i=0;i<100;i++) this_thread::sleep_for(1ns); return duration<double, micro>(high_resolution_clock::now()-st).count()/100.0; }
 // 49. Multithreaded Static Server Simulation (Throughput)
 double bench_web_server() {
-    const int num_requests = 1000;
+    const int num_requests = 500;
     const int num_threads = 4;
-    const string response = "HTTP/1.1 200 OK\r\nContent-Length: 1024\r\n\r\n" + string(1024, 'x');
     
     auto start = high_resolution_clock::now();
     auto task = [&]() {
+        random_device rd;
+        mt19937 gen(rd());
+        // Mean 10KB (10240), StdDev 4KB (4096)
+        normal_distribution<> size_dist(10240.0, 4096.0);
+        
         for(int i=0; i < num_requests / num_threads; ++i) {
-            // Simulate socket send/recv logic with volatile buffers
-            volatile char buffer[2048];
-            memcpy((void*)buffer, response.c_str(), min(sizeof(buffer), response.size()));
-            for(int j=0; j<100; j++) ((char*)buffer)[j] ^= 0xFF; // Sim processing
+            size_t page_size = static_cast<size_t>(max(512.0, size_dist(gen)));
+            vector<char> buffer(page_size, 'x');
+            
+            // Simulate processing/shuffling based on size
+            for(size_t j=0; j < min(page_size, (size_t)1000); j += 10) {
+                buffer[j] ^= 0xFF;
+            }
+            volatile char sink = buffer[0];
+            (void)sink;
         }
     };
     
@@ -198,7 +207,7 @@ double bench_web_server() {
     for(auto& t : pool) t.join();
     
     auto end = high_resolution_clock::now();
-    return duration<double, micro>(end - start).count() / num_requests; // us per req
+    return duration<double, micro>(end - start).count() / num_requests; 
 }
 
 // --- Runner ---
